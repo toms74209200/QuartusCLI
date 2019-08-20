@@ -12,7 +12,7 @@
 quartus_bin="<Quartus installation directory>"
 
 if [ $# = 0 ]; then
-    if find -name *.qpf; then
+    if [ -f *.qpf ]; then
         find -name *.qpf -printf '%f\n' | sed 's/\.[^\.]*$//' | xargs -I% $quartus_bin/quartus.exe % &
     else
         $quartus_bin/quartus.exe &
