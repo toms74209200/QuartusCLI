@@ -13,20 +13,23 @@ quartus_bin="<Quartus installation directory>"
 
 if [ $# = 0 ]; then
     if [ -f  *.qpf ]; then
-        find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | xargs -I% $quartus_bin/quartus.exe % &
+        project=$(find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | head -1)
+        $quartus_bin/quartus.exe $project &
     else
         $quartus_bin/quartus.exe &
     fi
 elif [ $# = 1 ]; then
     if [ $1 = "sh" ]; then
         if [ -f  *.qpf ]; then
-            find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | xargs -I% $quartus_bin/quartus_sh.exe --flow compile %
+            project=$(find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | head -1)
+            $quartus_bin/quartus_sh.exe --flow compile $project
         else
             echo "Project is not found."
         fi
     elif [ $1 = "sim" ]; then
         if [ -f  *.qpf ]; then
-            find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | xargs -I% $quartus_bin/quartus_sim.exe %
+            project=$(find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | head -1)
+            $quartus_bin/quartus_sim.exe $project
         else
             echo "Project is not found."
         fi
