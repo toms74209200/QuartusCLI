@@ -69,6 +69,20 @@ elif [ $# = 1 ]; then
         fi
     elif [ $1 = "mk" ]; then
         echo "Project name is unspecified."
+    elif [ $1 = "bs" ]; then
+        if [ -f *.qpf ]; then
+            find_project
+            find -name "*.vhd" | xargs -I% $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off ${project%.*} -c ${project%.*} --generate_symbol=%
+        else
+            echo "Project is not found."
+        fi
+    elif [ $1 = "map" ]; then
+        if [ -f *.qpf ]; then
+            find_project
+            $quartus_bin/quartus_map.exe ${project%.*}
+        else
+            echo "Project is not found."
+        fi
     else
         if [ -f $1.qpf ]; then
             $quartus_bin/quartus.exe $1 &
@@ -101,13 +115,24 @@ elif [ $# = 2 ]; then
             qar_dir="${project%.*}_$2_${today}"
             make_archive
         fi
+    elif [ $1 = "map" ]; then
+        if [ -f $2.qpf ]; then
+            $quartus_bin/quartus_map.exe $2
+        else
+            echo "Project is not found."
+        fi
     elif [ $1 = "mk" ]; then
-        $quartus_bin/quartus_sh.exe --tcl_eval project_new $2
-        echo >> $2.qsf
-        echo set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files >> $2.qsf
-        find -name "*.vhd" | xargs -I% echo set_global_assignment -name VHDL_FILE % >> $2.qsf
-        find -name "*.v"   | xargs -I% echo set_global_assignment -name VERILOG_FILE % >> $2.qsf
-        find -name "*.bdf" | xargs -I% echo set_global_assignment -name BDF_FILE % >> $2.qsf
+        project=$2
+        make_project
+    elif [ $1 = "bs" ]; then
+        if [ -f $2.qpf ]; then
+            find -name "*.vhd" | xargs -I% $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off $2 -c $2 --generate_symbol=%
+        elif [ -f *.qpf ]; then
+            find_project
+            $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off ${project%.*} -c ${project%.*} --generate_symbol=$2
+        else
+            echo "Project is not found."
+        fi
     else
         echo "Invalid argument"
     fi
