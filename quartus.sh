@@ -9,7 +9,9 @@
 # http://opensource.org/licenses/mit-license.php
 #------------------------------------------------------------------------------
 
-quartus_bin="<Quartus installation directory>"
+quartus_bin="<Quartus installation directory>/bin64"
+nativelink_dir="<Quartus installation directory>/common/tcl/internal/nativelink" #Windows folder. NOT WSL(/mnt/c/)
+modelsim_bin="<ModelSim installation directory>/win32aloem"
 
 # Function ####################################################################
 
@@ -36,6 +38,25 @@ function make_archive() {
     find -name "*.jic" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
 }
 
+function make_project() {
+    $quartus_bin/quartus_sh.exe --tcl_eval project_new $project
+    echo >> $project.qsf
+    echo "set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files" >> $project.qsf
+    find -maxdepth 2 -name "*.vhd" | xargs -I% echo "set_global_assignment -name VHDL_FILE %" >> $project.qsf
+    find -maxdepth 2 -name "*.v"   | xargs -I% echo "set_global_assignment -name VERILOG_FILE %" >> $project.qsf
+    find -maxdepth 2 -name "*.sv"  | xargs -I% echo "set_global_assignment -name SYSTEMVERILOG_FILE %" >> $project.qsf
+    find -maxdepth 2 -name "*.bdf" | xargs -I% echo "set_global_assignment -name BDF_FILE %" >> $project.qsf
+    echo "set_global_assignment -name EDA_SIMULATION_TOOL \"ModelSim-Altera (SystemVerilog)\"" >> $project.qsf
+    echo "set_global_assignment -name EDA_TIME_SCALE \"1 ns\" -section_id eda_simulation" >> $project.qsf
+    echo "set_global_assignment -name EDA_OUTPUT_DATA_FORMAT \"SYSTEMVERILOG HDL\" -section_id eda_simulation" >> $project.qsf
+    echo "set_global_assignment -name EDA_TEST_BENCH_ENABLE_STATUS TEST_BENCH_MODE -section_id eda_simulation" >> $project.qsf
+    echo "set_global_assignment -name EDA_NATIVELINK_SIMULATION_TEST_BENCH TB_$project -section_id eda_simulation" >> $project.qsf
+    echo "set_global_assignment -name EDA_TEST_BENCH_NAME TB_$project -section_id eda_simulation" >> $project.qsf
+    echo "set_global_assignment -name EDA_DESIGN_INSTANCE_NAME NA -section_id TB_$project" >> $project.qsf
+    echo "set_global_assignment -name EDA_TEST_BENCH_MODULE_NAME TB_$project -section_id TB_$project" >> $project.qsf
+    find ./testbench -name "*.sv"  | grep TB_ | xargs -I% echo "set_global_assignment -name EDA_TEST_BENCH_FILE % -section_id TB_$project" >> $project.qsf
+}
+
 # Main script #################################################################
 
 if [ $# = 0 ]; then
@@ -54,7 +75,20 @@ elif [ $# = 1 ]; then
             echo "Project is not found."
         fi
     elif [ $1 = "sim" ]; then
-        if [ -f  *.qpf ]; then
+        simulation_status=$(ps -ef | grep [v]sim | wc -l)
+        if [ $simulation_status -gt 0 ]; then
+            echo "Modelsim lanches already."
+        elif [ -f ./simulation/modelsim/*.do ]; then
+            cd simulation/modelsim
+            do_file=$(find -name "*.do" | head -1)
+            if grep -sq '\-t 1ps' "$do_file" ; then
+                cp "$do_file" "$do_file.bak"
+                sed -i -e 's/\-t 1ps/-t 1ns -msgmode both -displaymsgmode both/g' $do_file
+                sed -i -e 's/add wave \*/add wave \-hex */g' $do_file
+            fi
+            $modelsim_bin/vsim.exe -do $do_file &
+            cd ../../
+        elif [ -f *.qpf ]; then
             find_project
             $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim ${project%.*} ${project%.*} &
         else
@@ -98,8 +132,18 @@ elif [ $# = 2 ]; then
             echo "Project is not found."
         fi
     elif [ $1 = "sim" ]; then
-        if [ -f $2.qpf ]; then
-            $quartus_bin/quartus_sim.exe $2
+        simulation_status=$(ps -ef | grep [v]sim | wc -l)
+        if [ $simulation_status -gt 0 ]; then
+            echo "Modelsim lanches already."
+        elif [ -f ./simulation/modelsim/$2_run_msim_rtl_vhdl.do ]; then
+            do_file=$2_run_msim_rtl_vhdl.do
+            grep -sq '\-t 1ps' "$do_file" && \
+                sed -e 's/\-t 1ps/-t 1ns -msgmode both -displaymsgmode both/g' $do_file > $do_file.bak && \
+                sed -e 's/add wave \*/add wave -hex */g' $do_file > $do_file
+            $modelsim_bin/vsim.exe -do $do_file &
+        elif [ -f $2.qpf ]; then
+            find_project
+            $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim $2 $2 &
         else
             echo "Project is not found."
         fi
