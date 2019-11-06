@@ -14,23 +14,26 @@ quartus_bin="<Quartus installation directory>"
 # Function ####################################################################
 
 function find_project() {
-    project=$(find -name "*.qpf" -printf '%f\n' | sed 's/\.[^\.]*$//' | head -1)
+    project=$(find -maxdepth 1 -name "*.qpf" -printf '%f\n' | head -1)
 }
 
 function make_archive() {
     mkdir -p ./archive/$qar_dir
-    $quartus_bin/quartus_sh.exe --archive -output ./archive/$qar_dir/$qar_dir $project
+    $quartus_bin/quartus_sh.exe --archive -output ./archive/$qar_dir/$qar_dir ${project%.*}
     mkdir -p ./archive/$qar_dir/src
-    find -name "*.vhd"  | xargs -I% cp % ./archive/$qar_dir/src/
-    find -name "*.v"    | xargs -I% cp % ./archive/$qar_dir/src/
-    find -name "*.bdf"  | xargs -I% cp % ./archive/$qar_dir/src/
-    find -name "*.bsf"  | xargs -I% cp % ./archive/$qar_dir/src/
-    find -name "*.qip"  | xargs -I% cp % ./archive/$qar_dir/src/
-    find -name "*.qsys" | xargs -I% cp % ./archive/$qar_dir/src/
+    cp -rp ./src ./archive/$qar_dir/
+    find -maxdepth 1 -name "*.qsf"  | xargs -I% cp % ./archive/$qar_dir/
+    find -maxdepth 1 -name "*.qpf"  | xargs -I% cp % ./archive/$qar_dir/
+    # find -maxdepth 1 -name "*.vhd"  | xargs -I% cp % ./archive/$qar_dir/
+    # find -maxdepth 1 -name "*.v"    | xargs -I% cp % ./archive/$qar_dir/
+    # find -maxdepth 1 -name "*.bdf"  | xargs -I% cp % ./archive/$qar_dir/
+    # find -maxdepth 1 -name "*.bsf"  | xargs -I% cp % ./archive/$qar_dir/
+    # find -maxdepth 1 -name "*.qip"  | xargs -I% cp % ./archive/$qar_dir/
+    # find -maxdepth 1 -name "*.qsys" | xargs -I% cp % ./archive/$qar_dir/
     mkdir -p ./archive/$qar_dir/program_files
-    find -name "*.sof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project}.sof
-    find -name "*.pof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project}.sof
-    find -name "*.jic" | xargs -I% cp % ./archive/$qar_dir/program_files/${project}.sof
+    find -name "*.sof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
+    find -name "*.pof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
+    find -name "*.jic" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
 }
 
 # Main script #################################################################
@@ -38,30 +41,30 @@ function make_archive() {
 if [ $# = 0 ]; then
     if [ -f *.qpf ]; then
         find_project
-        $quartus_bin/quartus.exe $project &
+        $quartus_bin/quartus.exe ${project%.*} &
     else
         $quartus_bin/quartus.exe &
     fi
 elif [ $# = 1 ]; then
     if [ $1 = "sh" ]; then
-        if [ -f  *.qpf ]; then
+        if [ -f *.qpf ]; then
             find_project
-            $quartus_bin/quartus_sh.exe --flow compile $project
+            $quartus_bin/quartus_sh.exe --flow compile ${project%.*}
         else
             echo "Project is not found."
         fi
     elif [ $1 = "sim" ]; then
         if [ -f  *.qpf ]; then
             find_project
-            $quartus_bin/quartus_sim.exe $project
+            $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim ${project%.*} ${project%.*} &
         else
             echo "Project is not found."
         fi
     elif [ $1 = "qar" ]; then
-        if [ -f  *.qpf ]; then
+        if [ -f *.qpf ]; then
             find_project
             today=$(date "+%y%m%d")
-            qar_dir="${project}_${today}"
+            qar_dir="${project%.*}_${today}"
             make_archive
         fi
     elif [ $1 = "mk" ]; then
@@ -95,7 +98,7 @@ elif [ $# = 2 ]; then
         else
             find_project
             today=$(date "+%y%m%d")
-            qar_dir="${project}_$2_${today}"
+            qar_dir="${project%.*}_$2_${today}"
             make_archive
         fi
     elif [ $1 = "mk" ]; then
