@@ -83,7 +83,7 @@ elif [ $# = 1 ]; then
             do_file=$(find -name "*.do" | head -1)
             if grep -sq '\-t 1ps' "$do_file" ; then
                 cp "$do_file" "$do_file.bak"
-                sed -i -e 's/\-t 1ps/-t 1ns -msgmode both -displaymsgmode both/g' $do_file
+                sed -i -e 's/\-t 1ps/\-msgmode both -displaymsgmode both/g' $do_file
                 sed -i -e 's/add wave \*/add wave \-hex */g' $do_file
             fi
             $modelsim_bin/vsim.exe -do $do_file &
@@ -138,7 +138,7 @@ elif [ $# = 2 ]; then
         elif [ -f ./simulation/modelsim/$2_run_msim_rtl_vhdl.do ]; then
             do_file=$2_run_msim_rtl_vhdl.do
             grep -sq '\-t 1ps' "$do_file" && \
-                sed -e 's/\-t 1ps/-t 1ns -msgmode both -displaymsgmode both/g' $do_file > $do_file.bak && \
+                sed -e 's/\-t 1ps/\-msgmode both -displaymsgmode both/g' $do_file > $do_file
                 sed -e 's/add wave \*/add wave -hex */g' $do_file > $do_file
             $modelsim_bin/vsim.exe -do $do_file &
         elif [ -f $2.qpf ]; then
