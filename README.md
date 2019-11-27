@@ -68,7 +68,7 @@ It works similarly argument `sh`. Start NativeLink [^1] simulation and simulate 
 
 ```diff
 - vsim -t 1ps -L altera ~
-+ vsim -t 1ns -msgmode both -displaymsgmode both -L altera ~
++ -msgmode both -displaymsgmode both -L altera ~
 - add wave *
 + add wave -hex *
 ```
