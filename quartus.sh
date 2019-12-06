@@ -33,9 +33,9 @@ function make_archive() {
     # find -maxdepth 1 -name "*.qip"  | xargs -I% cp % ./archive/$qar_dir/
     # find -maxdepth 1 -name "*.qsys" | xargs -I% cp % ./archive/$qar_dir/
     mkdir -p ./archive/$qar_dir/program_files
-    find -name "*.sof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
-    find -name "*.pof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
-    find -name "*.jic" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
+    find ./output_files -name "*.sof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
+    find ./output_files -name "*.pof" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
+    find ./output_files -name "*.jic" | xargs -I% cp % ./archive/$qar_dir/program_files/${project%.*}.sof
 }
 
 function make_project() {
