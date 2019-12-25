@@ -57,6 +57,21 @@ function make_project() {
     find ./testbench -name "*.sv"  | grep TB_ | xargs -I% echo "set_global_assignment -name EDA_TEST_BENCH_FILE % -section_id TB_$project" >> $project.qsf
 }
 
+function error() {
+    printf '\033[31m%s\033[m' 'ERROR: '
+    case $1 in
+        project|p )
+            echo "Project is not found."
+            ;;
+        argument|a )
+            echo "Project name is unspecified."
+            ;;
+        invalid|i )
+            echo "Invalid argument"
+            ;;
+    esac
+}
+
 # Main script #################################################################
 
 if [ $# = 0 ]; then
@@ -67,118 +82,131 @@ if [ $# = 0 ]; then
         $quartus_bin/quartus.exe &
     fi
 elif [ $# = 1 ]; then
-    if [ $1 = "sh" ]; then
-        if [ -f *.qpf ]; then
-            find_project
-            $quartus_bin/quartus_sh.exe --flow compile ${project%.*}
-        else
-            echo "Project is not found."
-        fi
-    elif [ $1 = "sim" ]; then
-        simulation_status=$(ps -ef | grep [v]sim | wc -l)
-        if [ $simulation_status -gt 0 ]; then
-            echo "Modelsim lanches already."
-        elif [ -f ./simulation/modelsim/*.do ]; then
-            cd simulation/modelsim
-            do_file=$(find -name "*.do" | head -1)
-            if grep -sq '\-t 1ps' "$do_file" ; then
-                cp "$do_file" "$do_file.bak"
-                sed -i -e 's/\-t 1ps/\-msgmode both -displaymsgmode both/g' $do_file
-                sed -i -e 's/add wave \*/add wave \-hex */g' $do_file
+    case $1 in
+        "sh" )
+            if [ -f *.qpf ]; then
+                find_project
+                $quartus_bin/quartus_sh.exe --flow compile ${project%.*}
+            else
+                error p
             fi
-            $modelsim_bin/vsim.exe -do $do_file &
-            cd ../../
-        elif [ -f *.qpf ]; then
-            find_project
-            $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim ${project%.*} ${project%.*} &
-        else
-            echo "Project is not found."
-        fi
-    elif [ $1 = "qar" ]; then
-        if [ -f *.qpf ]; then
-            find_project
-            today=$(date "+%y%m%d")
-            qar_dir="${project%.*}_${today}"
-            make_archive
-        fi
-    elif [ $1 = "mk" ]; then
-        echo "Project name is unspecified."
-    elif [ $1 = "bs" ]; then
-        if [ -f *.qpf ]; then
-            find_project
-            find -name "*.vhd" | xargs -I% $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off ${project%.*} -c ${project%.*} --generate_symbol=%
-        else
-            echo "Project is not found."
-        fi
-    elif [ $1 = "map" ]; then
-        if [ -f *.qpf ]; then
-            find_project
-            $quartus_bin/quartus_map.exe ${project%.*}
-        else
-            echo "Project is not found."
-        fi
-    else
-        if [ -f $1.qpf ]; then
-            $quartus_bin/quartus.exe $1 &
-        else
-            echo "Project is not found."
-        fi
-    fi
+            ;;
+        "sim" )
+            simulation_status=$(ps -ef | grep [v]sim | wc -l)
+            if [ $simulation_status -gt 0 ]; then
+                echo "Modelsim lanches already."
+            elif [ -f ./simulation/modelsim/*.do ]; then
+                cd simulation/modelsim
+                do_file=$(find -name "*.do" | head -1)
+                if grep -sq '\-t 1ps' "$do_file" ; then
+                    cp "$do_file" "$do_file.bak"
+                    sed -i -e 's/\-t 1ps/-msgmode both -displaymsgmode both/g' $do_file
+                    sed -i -e 's/add wave \*/add wave \-hex */g' $do_file
+                fi
+                $modelsim_bin/vsim.exe -do $do_file &
+                cd ../../
+            elif [ -f *.qpf ]; then
+                find_project
+                $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim ${project%.*} ${project%.*} &
+            else
+                error p
+            fi
+            ;;
+        "qar" )
+            if [ -f *.qpf ]; then
+                find_project
+                today=$(date "+%y%m%d")
+                qar_dir="${project%.*}_${today}"
+                make_archive
+            fi
+            ;;
+        "mk" )
+            error a
+            ;;
+        "bs" )
+            if [ -f *.qpf ]; then
+                find_project
+                find -name "*.vhd" | xargs -I% $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off ${project%.*} -c ${project%.*} --generate_symbol=%
+            else
+                error p
+            fi
+            ;;
+        "map" )
+            if [ -f *.qpf ]; then
+                find_project
+                $quartus_bin/quartus_map.exe ${project%.*}
+            else
+                error p
+            fi
+            ;;
+        * )
+            if [ -f $1.qpf ]; then
+                $quartus_bin/quartus.exe $1 &
+            else
+                error p
+            fi
+            ;;
+    esac
 elif [ $# = 2 ]; then
-    if [ $1 = "sh" ]; then
-        if [ -f $2.qpf ]; then
-            $quartus_bin/quartus_sh.exe --flow compile $2
-        else
-            echo "Project is not found."
-        fi
-    elif [ $1 = "sim" ]; then
-        simulation_status=$(ps -ef | grep [v]sim | wc -l)
-        if [ $simulation_status -gt 0 ]; then
-            echo "Modelsim lanches already."
-        elif [ -f ./simulation/modelsim/$2_run_msim_rtl_vhdl.do ]; then
-            do_file=$2_run_msim_rtl_vhdl.do
-            grep -sq '\-t 1ps' "$do_file" && \
-                sed -e 's/\-t 1ps/\-msgmode both -displaymsgmode both/g' $do_file > $do_file
-                sed -e 's/add wave \*/add wave -hex */g' $do_file > $do_file
-            $modelsim_bin/vsim.exe -do $do_file &
-        elif [ -f $2.qpf ]; then
-            find_project
-            $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim $2 $2 &
-        else
-            echo "Project is not found."
-        fi
-    elif [ $1 = "qar" ]; then
-        if [ -f $2.qpf ]; then
-            project="$2"
-            today=$(date "+%y%m%d")
-            qar_dir="$2_${today}"
-            make_archive
-        else
-            find_project
-            today=$(date "+%y%m%d")
-            qar_dir="${project%.*}_$2_${today}"
-            make_archive
-        fi
-    elif [ $1 = "map" ]; then
-        if [ -f $2.qpf ]; then
-            $quartus_bin/quartus_map.exe $2
-        else
-            echo "Project is not found."
-        fi
-    elif [ $1 = "mk" ]; then
-        project=$2
-        make_project
-    elif [ $1 = "bs" ]; then
-        if [ -f $2.qpf ]; then
-            find -name "*.vhd" | xargs -I% $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off $2 -c $2 --generate_symbol=%
-        elif [ -f *.qpf ]; then
-            find_project
-            $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off ${project%.*} -c ${project%.*} --generate_symbol=$2
-        else
-            echo "Project is not found."
-        fi
-    else
-        echo "Invalid argument"
-    fi
+    case $1 in
+        "sh" )
+            if [ -f *.qpf ]; then
+                find_project
+                $quartus_bin/quartus_sh.exe --flow compile $2
+            else
+                error p
+            fi
+            ;;
+        "sim" )
+            simulation_status=$(ps -ef | grep [v]sim | wc -l)
+            if [ $simulation_status -gt 0 ]; then
+                echo "Modelsim lanches already."
+            elif [ -f ./simulation/modelsim/$2_run_msim_rtl_vhdl.do ]; then
+                do_file=$2_run_msim_rtl_vhdl.do
+                grep -sq '\-t 1ps' "$do_file" && \
+                    sed -i -e 's/\-t 1ps/-msgmode both -displaymsgmode both/g' $do_file > $do_file
+                    sed -i -e 's/add wave \*/add wave -hex */g' $do_file > $do_file
+                $modelsim_bin/vsim.exe -do $do_file &
+            elif [ -f $2.qpf ]; then
+                find_project
+                $quartus_bin/quartus_sh.exe -t $nativelink_dir/qnativesim.tcl --rtl_sim $2 $2 &
+            else
+                error p
+            fi
+            ;;
+        "qar" )
+            if [ -f $2.qpf ]; then
+                find_project
+                today=$(date "+%y%m%d")
+                qar_dir="$2_${today}"
+                make_archive
+            fi
+            ;;
+        "mk" )
+            project=$2
+            make_project
+            ;;
+        "bs" )
+            if [ -f $2.qpf ]; then
+                find -name "*.vhd" | xargs -I% $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off $2 -c $2 --generate_symbol=%
+            elif [ -f *.qpf ]; then
+                find_project
+                $quartus_bin/quartus_map.exe --read_settings_files=on --write_settings_files=off ${project%.*} -c ${project%.*} --generate_symbol=$2
+            else
+                error p
+            fi
+            ;;
+        "map" )
+            if [ -f $2.qpf ]; then
+                find_project
+                $quartus_bin/quartus_map.exe $2
+            else
+                error p
+            fi
+            ;;
+        * )
+            error i
+            ;;
+    esac
 fi
 
