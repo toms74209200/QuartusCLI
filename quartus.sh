@@ -176,9 +176,14 @@ elif [ $# = 2 ]; then
             ;;
         "qar" )
             if [ -f $2.qpf ]; then
-                find_project
+                project="$2"
                 today=$(date "+%y%m%d")
                 qar_dir="$2_${today}"
+                make_archive
+            else
+                find_project
+                today=$(date "+%y%m%d")
+                qar_dir="${project%.*}_$2_${today}"
                 make_archive
             fi
             ;;
